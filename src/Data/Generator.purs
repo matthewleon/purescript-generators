@@ -3,12 +3,15 @@ module Data.Generator where
 import Prelude
 
 import Control.Monad.Eff (Eff)
+import Control.Monad.Error.Class (class MonadThrow)
+import Control.Monad.Except (ExceptT, runExceptT, throwError)
 import Control.Monad.Reader (ReaderT, ask, lift, runReaderT)
 import Control.Monad.Rec.Class (class MonadRec, Step(..), tailRecM)
 import Control.Monad.ST (ST, pureST)
 import Control.Monad.State (StateT, execStateT, get, put)
 import Data.Array (length, replicate, unsafeIndex)
 import Data.Array.ST (STArray, modifySTArray, thaw, unsafeFreeze)
+import Data.Either (either)
 import Data.Maybe (Maybe, maybe)
 import Data.Monoid (class Monoid, mempty)
 import Data.Tuple (Tuple(..))
@@ -39,6 +42,19 @@ forever = tailRecM \e -> do
   yield e
   pure $ Loop e
 
+orG :: forall m. Monad m => Producer (ExceptT Boolean m) Boolean -> m Boolean
+orG gen = either id (const false) <$> runExceptT (runGenT gen orC)
+  where
+    orC :: forall m'. MonadThrow Boolean m' => Consumer m' Boolean
+    orC true  = throwError true
+    orC false = pure unit
+
+anyG
+  :: forall m e
+   . Monad m
+  => (e -> Boolean) -> (forall m'. Producer (GenT Boolean m') e) -> m Boolean
+anyG f = orG <<< mapG f
+
 maybeG :: forall m e. Monad m => Maybe e -> Producer m e
 maybeG = maybe (pure unit) yield
 
@@ -58,12 +74,12 @@ stArrayC
 stArrayC starr combine (Tuple i e) = void $ modifySTArray starr i (flip combine e)
 
 accumSTArray
-  :: forall a b h m
+  :: forall a b h
    . STArray h a -> (a -> b -> a) -> (forall h'. Producer (Eff (st :: ST h')) (Tuple Int b)) -> Eff (st :: ST h) Unit
 accumSTArray starr combine gen = gen `runGenT` stArrayC starr combine
 
 accumArray
-  :: forall a m
+  :: forall a
    . Monoid a
   => Int -> (forall h. Producer (Eff (st :: ST h)) (Tuple Int a)) -> Array a
 accumArray = accumArray' mempty append

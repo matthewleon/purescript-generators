@@ -32,6 +32,9 @@ runGenT = runReaderT
 mapG :: forall m e1 e2. Monad m => (e1 -> e2) -> Transducer (GenT e2 m) m e1 e2
 mapG f gen = runGenT gen $ yield <<< f
 
+filterG :: forall m e. Monad m => (e -> Boolean) -> Transducer (GenT e m) m e e
+filterG f gen = runGenT gen $ \e -> if f e then yield e else pure unit
+
 foldG :: forall m e s. Monad m => (s -> e -> m s) -> s -> Producer (StateT s m) e -> m s
 foldG f s0 gen = execStateT (runGenT gen consumer) s0
   where
@@ -49,10 +52,8 @@ orG gen = either id (const false) <$> runExceptT (runGenT gen orC)
     orC true  = throwError true
     orC false = pure unit
 
-anyG
-  :: forall m e
-   . Monad m
-  => (e -> Boolean) -> (forall m'. Producer (GenT Boolean m') e) -> m Boolean
+-- TODO: try to figure out wtf this signature says
+anyG :: forall m e. Monad m => (e -> Boolean) -> ReaderT (e -> ReaderT (Boolean -> ExceptT Boolean m Unit) (ExceptT Boolean m) Unit) (ReaderT (Boolean -> ExceptT Boolean m Unit) (ExceptT Boolean m)) Unit -> m Boolean
 anyG f = orG <<< mapG f
 
 maybeG :: forall m e. Monad m => Maybe e -> Producer m e

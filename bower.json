@@ -1,0 +1,19 @@
+{
+  "name": "purescript-generators",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "output"
+  ],
+  "dependencies": {
+    "purescript-prelude": "^3.1.1",
+    "purescript-transformers": "^3.5.0",
+    "purescript-tailrec": "^3.3.0"
+  },
+  "devDependencies": {
+    "purescript-psci-support": "^3.0.0",
+    "purescript-strings": "^3.5.0",
+    "purescript-debug": "^3.0.0"
+  }
+}

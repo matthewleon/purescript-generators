@@ -60,7 +60,7 @@ stArrayC starr combine (Tuple i e) = void $ modifySTArray starr i (flip combine 
 accumSTArray
   :: forall a b h m
    . STArray h a -> (a -> b -> a) -> (forall h'. Producer (Eff (st :: ST h')) (Tuple Int b)) -> Eff (st :: ST h) Unit
-accumSTArray starr combine gen = runGenT gen (stArrayC starr combine)
+accumSTArray starr combine gen = gen `runGenT` stArrayC starr combine
 
 accumArray
   :: forall a m

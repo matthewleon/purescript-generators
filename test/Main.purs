@@ -14,12 +14,15 @@ main = do
   runGenT (yield "Hello world.") log
   runGenT (toUpper `mapG` helloWorldArrayProducer) log
   logShow arr
+  logShow arr'
   where
   arr = accumArray 5 do
     yield (Tuple 2 "hey")
     yield (Tuple 0 "hello")
     yield (Tuple 2 "world")
     yield (Tuple 1 "world")
+  arr' = accumArray 5
+    (arrayG [Tuple 2 "hey", Tuple 0 "hello", Tuple 2 "world", Tuple 1 "world"])
 
 helloWorldArrayProducer :: forall m. MonadRec m => Producer m String
 helloWorldArrayProducer = arrayG ["Hello", "everyone", "in", "the", "world"]

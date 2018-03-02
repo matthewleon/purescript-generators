@@ -2,7 +2,7 @@ module Data.Generator where
 
 import Prelude
 
-import Control.Monad.Eff (Eff)
+import Control.Monad.Eff.Class (class MonadEff, liftEff)
 import Control.Monad.Error.Class (class MonadThrow)
 import Control.Monad.Except (ExceptT, runExceptT, throwError)
 import Control.Monad.Reader (ReaderT, ask, lift, runReaderT)
@@ -70,24 +70,39 @@ arrayG xs =
          pure $ Loop $ i + 1
 
 stArrayC
-  :: forall a b h
-   . STArray h a -> (a -> b -> a) -> Consumer (Eff (st :: ST h)) (Tuple Int b)
-stArrayC starr combine (Tuple i e) = void $ modifySTArray starr i (flip combine e)
+  :: forall a b m h eff
+   . MonadEff (st :: ST h | eff) m
+  => STArray h a -> (a -> b -> a) -> Consumer m (Tuple Int b)
+stArrayC starr combine (Tuple i e) =
+  liftEff $ void $ modifySTArray starr i (flip combine e)
 
 accumSTArray
-  :: forall a b h
-   . STArray h a -> (a -> b -> a) -> (forall h'. Producer (Eff (st :: ST h')) (Tuple Int b)) -> Eff (st :: ST h) Unit
+  :: forall m h b a eff
+   . MonadEff (st :: ST h | eff) m
+  => STArray h a -> (a -> b -> a) -> Producer m (Tuple Int b) -> m Unit
 accumSTArray starr combine gen = gen `runGenT` stArrayC starr combine
 
 accumArray
   :: forall a
    . Monoid a
-  => Int -> (forall h. Producer (Eff (st :: ST h)) (Tuple Int a)) -> Array a
-accumArray = accumArray' mempty append
+  => Int
+  -> ( forall m h eff
+     . MonadEff (st :: ST h | eff) m
+    => MonadRec m
+    => Producer m (Tuple Int a))
+  -> Array a
+accumArray len gen = accumArray' mempty append len gen
 
 accumArray'
   :: forall a b
-   . a -> (a -> b -> a) -> Int -> (forall h. Producer (Eff (st :: ST h)) (Tuple Int b)) -> Array a
+   . a
+  -> (a -> b -> a)
+  -> Int
+  -> ( forall m h eff
+     . MonadEff (st :: ST h | eff) m
+    => MonadRec m
+    => Producer m (Tuple Int b))
+  -> Array a
 accumArray' initValue combine len gen = pureST do
     as <- thaw (replicate len initValue) -- TODO: unsafeThaw
     accumSTArray as combine gen
